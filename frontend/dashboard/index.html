@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Autonomous AIOps NOC</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./css/index.css">
+  </head>
+  <body>
+    <!-- Background Particle Canvas -->
+    <canvas id="bg-particles"></canvas>
+
+    <!-- MAIN NOC DASHBOARD CONTAINER -->
+    <div class="noc-container">
+        <!-- HEADER -->
+        <header class="noc-header">
+            <h1> LIVE AIOps NOC Command Center</h1>
+            <div class="status-indicator">
+                <span class="pulse-dot green" id="global-status-dot"></span> <span id="global-status-text">System Nominal</span>
+            </div>
+        </header>
+
+        <!-- 2x2 GRID -->
+        <div class="noc-grid">
+            <!-- TOP LEFT: Live 3D Cluster Topology (big, unbounded) -->
+            <div class="noc-cell topology-cell" id="radar-panel">
+                <h2>Live Cluster Topology</h2>
+                <div id="hero-canvas-container"></div>
+                <!-- Floating alert popup (positioned by JS) -->
+                <div id="node-alert-popup" class="node-popup hidden">
+                    <span id="popup-text">🚨 Anomaly detected</span>
+                </div>
+            </div>
+
+            <!-- TOP RIGHT: Autonomous Intervention Window -->
+            <div class="noc-cell terminal-cell">
+                <h2>Autonomous Intervention Window</h2>
+                <div class="terminal-window" id="analyzer">
+                    <div class="terminal-header">
+                        <span class="dot red"></span>
+                        <span class="dot yellow"></span>
+                        <span class="dot green"></span>
+                        <span class="terminal-title">AIOps Agent v2.0 - STANDBY</span>
+                    </div>
+                    <div class="terminal-body" id="analyzer-output">
+                        <p class="standby-text">Waiting for anomalies from Kafka stream...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BOTTOM LEFT: Ingestion Feed -->
+            <div class="noc-cell feed-cell">
+                <h2>Ingestion Feed</h2>
+                <div class="ticker-stats">
+                    <span id="logs-per-min">Ingesting: ~500 logs/min</span>
+                    <span id="active-blocks">Tracking: 12 active</span>
+                </div>
+                <ul id="live-ticker-list" class="ticker-list">
+                    <!-- Fast scrolling block IDs will appear here -->
+                </ul>
+            </div>
+
+            <!-- BOTTOM RIGHT: Incident Ledger -->
+            <div class="noc-cell ledger-cell">
+                <h2>Incident Ledger</h2>
+                <div class="ledger-scroll">
+                    <table class="ledger-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Block ID</th>
+                                <th>Failure Mode</th>
+                                <th>Action Taken</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ledger-body">
+                            <!-- Resolved incidents appear here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        window.addEventListener('error', function(e) {
+            document.body.innerHTML += '<div style="position:fixed; top:0; left:0; width:100%; background:red; color:white; padding:20px; z-index:9999;"><h3>Fatal Error:</h3><pre>' + e.message + '</pre></div>';
+        });
+    </script>
+    <script type="module" src="./js/main.js"></script>
+  </body>
+</html>

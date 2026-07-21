@@ -1,0 +1,617 @@
+{
+  "failure_modes": {
+    "WRITE_PATH_FAILURE": {
+      "description": "Block write operation failed during data pipeline replication",
+      "key_events": [
+        "E7",
+        "E12"
+      ],
+      "symptoms": "writeBlock exception followed by mirror write exception; block allocated but never fully received",
+      "root_cause": "Destination DataNode disk failure, network interruption during write pipeline, or insufficient disk space",
+      "remediation": {
+        "action": "restart_datanode",
+        "priority": "HIGH",
+        "details": "Restart the affected DataNode and verify disk health"
+      },
+      "4gram_signatures": [
+        "E22,E5,E5,E7",
+        "E5,E5,E22,E7",
+        "E5,E22,E5,E7"
+      ]
+    },
+    "EMPTY_PACKET_LOOP": {
+      "description": "System stuck receiving empty packets in a loop, indicating data corruption",
+      "key_events": [
+        "E13"
+      ],
+      "symptoms": "Cyclical pattern of receive \u2192 empty packet \u2192 terminate \u2192 receive; no useful data transferred",
+      "root_cause": "Network packet corruption, source node memory error, or corrupted data in write pipeline",
+      "remediation": {
+        "action": "check_network_and_restart",
+        "priority": "HIGH",
+        "details": "Check network integrity between source and destination DataNodes, restart affected nodes"
+      },
+      "4gram_signatures": [
+        "E9,E13,E11,E9",
+        "E11,E9,E13,E11",
+        "E13,E11,E9,E13"
+      ]
+    },
+    "SERVE_FAILURE": {
+      "description": "Block serving to clients failed, triggering emergency re-replication",
+      "key_events": [
+        "E4",
+        "E25"
+      ],
+      "symptoms": "Block served successfully then hit exception; system requests replication of new copy",
+      "root_cause": "DataNode going offline during read operations, node crash, or disk failure during serve",
+      "remediation": {
+        "action": "trigger_replication",
+        "priority": "MEDIUM",
+        "details": "Ensure block has sufficient replicas; if not, trigger re-replication to healthy nodes"
+      },
+      "4gram_signatures": [
+        "E3,E3,E4,E25",
+        "E3,E4,E3,E25",
+        "E21,E3,E3,E4"
+      ]
+    },
+    "METADATA_INCONSISTENCY": {
+      "description": "NameNode metadata became inconsistent with actual block state",
+      "key_events": [
+        "E27",
+        "E28"
+      ],
+      "symptoms": "Redundant addStoredBlock requests; blocks reported stored but don't belong to any file",
+      "root_cause": "Network delays caused retransmission of block reports, leading to stale metadata in NameNode",
+      "remediation": {
+        "action": "run_fsck",
+        "priority": "MEDIUM",
+        "details": "Run HDFS fsck to verify and repair filesystem metadata consistency"
+      },
+      "4gram_signatures": [
+        "E26,E26,E26,E27",
+        "E26,E27,E23,E23",
+        "E9,E26,E26,E27"
+      ]
+    },
+    "REPLICATION_FAILURE": {
+      "description": "Block replication or transfer between DataNodes failed",
+      "key_events": [
+        "E17",
+        "E29"
+      ],
+      "symptoms": "Transfer failed events or replication monitor timeout; block under-replicated",
+      "root_cause": "Target DataNode unreachable, network partition, or cluster overloaded preventing timely replication",
+      "remediation": {
+        "action": "increase_replication",
+        "priority": "HIGH",
+        "details": "Check cluster network connectivity; increase replication factor or add new DataNodes"
+      },
+      "4gram_signatures": []
+    },
+    "BLOCK_LIFECYCLE_ERROR": {
+      "description": "Error during block receive or delete operations",
+      "key_events": [
+        "E14",
+        "E20",
+        "E10"
+      ],
+      "symptoms": "Exception in receiveBlock, unexpected delete errors, or PacketResponder exceptions",
+      "root_cause": "Block corruption, stale block references in volumeMap, or interrupted block operations",
+      "remediation": {
+        "action": "check_disk_and_cleanup",
+        "priority": "MEDIUM",
+        "details": "Verify disk health on affected DataNode; clean up orphaned blocks and stale references"
+      },
+      "4gram_signatures": []
+    },
+    "INCOMPLETE_PIPELINE": {
+      "description": "Block write pipeline started but terminated silently without completion or error",
+      "key_events": [],
+      "detection_method": "sequence_length",
+      "detection_rule": "Trace contains E5 and E22 but sequence length <= 3 and no completion events (E9, E11, E26, E2)",
+      "symptoms": "Very short trace with only pipeline initialization events; no errors and no completion",
+      "root_cause": "DataNode process killed (OOM), hardware failure, power loss, or catastrophic network partition before error could be logged",
+      "remediation": {
+        "action": "check_node_survival",
+        "priority": "CRITICAL",
+        "details": "Verify DataNode is alive; check OS logs for OOM kills; verify disk/network hardware; re-replicate affected blocks"
+      },
+      "4gram_signatures": []
+    },
+    "SILENT_RECOVERY": {
+      "description": "Block operations triggered emergency replication without logging an explicit error",
+      "key_events": [
+        "E25",
+        "E18"
+      ],
+      "detection_method": "event_presence",
+      "detection_rule": "Trace contains E25 (ask to replicate) or E18 (transfer thread) without any error events",
+      "symptoms": "Apparently successful operations followed by replication requests; no error events present",
+      "root_cause": "Transient failure detected by HDFS's internal monitoring but not severe enough to generate error logs",
+      "remediation": {
+        "action": "monitor_cluster_health",
+        "priority": "MEDIUM",
+        "details": "Monitor cluster for recurring transient failures; check for intermittent network issues"
+      },
+      "4gram_signatures": []
+    }
+  },
+  "type_to_mode_mapping": {
+    "0": {
+      "failure_mode": "SERVE_FAILURE",
+      "score": 0.8978284086863653,
+      "count": 2809,
+      "mean_seq_length": 31.869704521181916
+    },
+    "1": {
+      "failure_mode": "METADATA_INCONSISTENCY",
+      "score": 1.0020986358866737,
+      "count": 953,
+      "mean_seq_length": 20.752360965372507
+    },
+    "3": {
+      "failure_mode": "INCOMPLETE_PIPELINE",
+      "score": 0.0,
+      "count": 2950,
+      "mean_seq_length": 2.0
+    },
+    "4": {
+      "failure_mode": "SERVE_FAILURE",
+      "score": 1.9741935483870967,
+      "count": 1240,
+      "mean_seq_length": 26.381451612903227
+    },
+    "5": {
+      "failure_mode": "BLOCK_LIFECYCLE_ERROR",
+      "score": 1.0,
+      "count": 4167,
+      "mean_seq_length": 21.684665226781856
+    },
+    "7": {
+      "failure_mode": "EMPTY_PACKET_LOOP",
+      "score": 3.0,
+      "count": 476,
+      "mean_seq_length": 21.508403361344538
+    },
+    "8": {
+      "failure_mode": "REPLICATION_FAILURE",
+      "score": 1.0222222222222221,
+      "count": 45,
+      "mean_seq_length": 30.822222222222223
+    },
+    "9": {
+      "failure_mode": "BLOCK_LIFECYCLE_ERROR",
+      "score": 4.764705882352941,
+      "count": 34,
+      "mean_seq_length": 40.1764705882353
+    },
+    "10": {
+      "failure_mode": "SILENT_RECOVERY",
+      "score": 0.0,
+      "count": 3,
+      "mean_seq_length": 29.0
+    },
+    "11": {
+      "failure_mode": "BLOCK_LIFECYCLE_ERROR",
+      "score": 3.666666666666667,
+      "count": 3,
+      "mean_seq_length": 22.666666666666668
+    },
+    "12": {
+      "failure_mode": "BLOCK_LIFECYCLE_ERROR",
+      "score": 1.9692307692307693,
+      "count": 130,
+      "mean_seq_length": 22.838461538461537
+    },
+    "13": {
+      "failure_mode": "BLOCK_LIFECYCLE_ERROR",
+      "score": 3.4000000000000004,
+      "count": 10,
+      "mean_seq_length": 19.3
+    },
+    "16": {
+      "failure_mode": "BLOCK_LIFECYCLE_ERROR",
+      "score": 2.090909090909091,
+      "count": 22,
+      "mean_seq_length": 8.545454545454545
+    },
+    "17": {
+      "failure_mode": "BLOCK_LIFECYCLE_ERROR",
+      "score": 1.0,
+      "count": 3,
+      "mean_seq_length": 34.0
+    },
+    "18": {
+      "failure_mode": "SERVE_FAILURE",
+      "score": 0.4444444444444444,
+      "count": 9,
+      "mean_seq_length": 26.11111111111111
+    },
+    "19": {
+      "failure_mode": "SERVE_FAILURE",
+      "score": 0.5,
+      "count": 8,
+      "mean_seq_length": 46.625
+    },
+    "20": {
+      "failure_mode": "SERVE_FAILURE",
+      "score": 1.1428571428571428,
+      "count": 7,
+      "mean_seq_length": 27.714285714285715
+    },
+    "21": {
+      "failure_mode": "SERVE_FAILURE",
+      "score": 2.5621546961325965,
+      "count": 724,
+      "mean_seq_length": 25.964088397790054
+    },
+    "22": {
+      "failure_mode": "SERVE_FAILURE",
+      "score": 0.6666666666666666,
+      "count": 9,
+      "mean_seq_length": 20.666666666666668
+    },
+    "23": {
+      "failure_mode": "WRITE_PATH_FAILURE",
+      "score": 1.0,
+      "count": 1,
+      "mean_seq_length": 278.0
+    },
+    "24": {
+      "failure_mode": "SERVE_FAILURE",
+      "score": 0.3333333333333333,
+      "count": 3,
+      "mean_seq_length": 45.333333333333336
+    },
+    "25": {
+      "failure_mode": "SERVE_FAILURE",
+      "score": 15.0,
+      "count": 2,
+      "mean_seq_length": 45.5
+    },
+    "27": {
+      "failure_mode": "BLOCK_LIFECYCLE_ERROR",
+      "score": 3.3333333333333335,
+      "count": 3,
+      "mean_seq_length": 46.333333333333336
+    },
+    "28": {
+      "failure_mode": "BLOCK_LIFECYCLE_ERROR",
+      "score": 1.0,
+      "count": 1,
+      "mean_seq_length": 28.0
+    },
+    "30": {
+      "failure_mode": "BLOCK_LIFECYCLE_ERROR",
+      "score": 3.0,
+      "count": 1,
+      "mean_seq_length": 22.0
+    },
+    "31": {
+      "failure_mode": "WRITE_PATH_FAILURE",
+      "score": 1.0,
+      "count": 3225,
+      "mean_seq_length": 4.0
+    }
+  },
+  "normal_baseline": {
+    "median_latency": 7303.0,
+    "mean_latency": 16870.9123414836,
+    "typical_events": [
+      "E5",
+      "E22",
+      "E9",
+      "E11",
+      "E26",
+      "E2",
+      "E3",
+      "E21",
+      "E23"
+    ]
+  },
+  "event_templates": {
+    "E1": "[*]Adding an already existing block[*]",
+    "E2": "[*]Verification succeeded for[*]",
+    "E3": "[*]Served block[*]to[*]",
+    "E4": "[*]Got exception while serving[*]to[*]",
+    "E5": "[*]Receiving block[*]src:[*]dest:[*]",
+    "E6": "[*]Received block[*]src:[*]dest:[*]of size[*]",
+    "E7": "[*]writeBlock[*]received exception[*]",
+    "E8": "[*]PacketResponder[*]for block[*]Interrupted[*]",
+    "E9": "[*]Received block[*]of size[*]from[*]",
+    "E10": "[*]PacketResponder[*]Exception[*]",
+    "E11": "[*]PacketResponder[*]for block[*]terminating[*]",
+    "E12": "[*]:Exception writing block[*]to mirror[*]",
+    "E13": "[*]Receiving empty packet for block[*]",
+    "E14": "[*]Exception in receiveBlock for block[*]",
+    "E15": "[*]Changing block file offset of block[*]from[*]to[*]meta file offset to[*]",
+    "E16": "[*]:Transmitted block[*]to[*]",
+    "E17": "[*]:Failed to transfer[*]to[*]got[*]",
+    "E18": "[*]Starting thread to transfer block[*]to[*]",
+    "E19": "[*]Reopen Block[*]",
+    "E20": "[*]Unexpected error trying to delete block[*]BlockInfo not found in volumeMap[*]",
+    "E21": "[*]Deleting block[*]file[*]",
+    "E22": "[*]BLOCK* NameSystem[*]allocateBlock:[*]",
+    "E23": "[*]BLOCK* NameSystem[*]delete:[*]is added to invalidSet of[*]",
+    "E24": "[*]BLOCK* Removing block[*]from neededReplications as it does not belong to any file[*]",
+    "E25": "[*]BLOCK* ask[*]to replicate[*]to[*]",
+    "E26": "[*]BLOCK* NameSystem[*]addStoredBlock: blockMap updated:[*]is added to[*]size[*]",
+    "E27": "[*]BLOCK* NameSystem[*]addStoredBlock: Redundant addStoredBlock request received for[*]on[*]size[*]",
+    "E28": "[*]BLOCK* NameSystem[*]addStoredBlock: addStoredBlock request received for[*]on[*]size[*]But it does not belong to any file[*]",
+    "E29": "[*]PendingReplicationMonitor timed out block[*]"
+  },
+  "anomaly_exclusive_4grams": [
+    {
+      "pattern": [
+        "E22",
+        "E5",
+        "E5",
+        "E7"
+      ],
+      "count": 1365
+    },
+    {
+      "pattern": [
+        "E5",
+        "E5",
+        "E22",
+        "E7"
+      ],
+      "count": 1259
+    },
+    {
+      "pattern": [
+        "E9",
+        "E13",
+        "E11",
+        "E9"
+      ],
+      "count": 721
+    },
+    {
+      "pattern": [
+        "E11",
+        "E9",
+        "E13",
+        "E11"
+      ],
+      "count": 719
+    },
+    {
+      "pattern": [
+        "E13",
+        "E11",
+        "E9",
+        "E13"
+      ],
+      "count": 717
+    },
+    {
+      "pattern": [
+        "E5",
+        "E22",
+        "E5",
+        "E7"
+      ],
+      "count": 612
+    },
+    {
+      "pattern": [
+        "E26",
+        "E26",
+        "E21",
+        "E3"
+      ],
+      "count": 537
+    },
+    {
+      "pattern": [
+        "E13",
+        "E11",
+        "E9",
+        "E26"
+      ],
+      "count": 342
+    },
+    {
+      "pattern": [
+        "E3",
+        "E3",
+        "E4",
+        "E25"
+      ],
+      "count": 341
+    },
+    {
+      "pattern": [
+        "E9",
+        "E26",
+        "E26",
+        "E27"
+      ],
+      "count": 309
+    },
+    {
+      "pattern": [
+        "E26",
+        "E26",
+        "E26",
+        "E27"
+      ],
+      "count": 303
+    },
+    {
+      "pattern": [
+        "E21",
+        "E3",
+        "E3",
+        "E4"
+      ],
+      "count": 282
+    },
+    {
+      "pattern": [
+        "E26",
+        "E27",
+        "E23",
+        "E23"
+      ],
+      "count": 276
+    },
+    {
+      "pattern": [
+        "E27",
+        "E23",
+        "E23",
+        "E23"
+      ],
+      "count": 276
+    },
+    {
+      "pattern": [
+        "E3",
+        "E4",
+        "E3",
+        "E25"
+      ],
+      "count": 260
+    },
+    {
+      "pattern": [
+        "E26",
+        "E26",
+        "E27",
+        "E26"
+      ],
+      "count": 255
+    },
+    {
+      "pattern": [
+        "E27",
+        "E26",
+        "E23",
+        "E23"
+      ],
+      "count": 236
+    },
+    {
+      "pattern": [
+        "E26",
+        "E26",
+        "E27",
+        "E23"
+      ],
+      "count": 224
+    },
+    {
+      "pattern": [
+        "E3",
+        "E25",
+        "E5",
+        "E18"
+      ],
+      "count": 223
+    },
+    {
+      "pattern": [
+        "E16",
+        "E26",
+        "E21",
+        "E23"
+      ],
+      "count": 221
+    },
+    {
+      "pattern": [
+        "E26",
+        "E27",
+        "E26",
+        "E23"
+      ],
+      "count": 199
+    },
+    {
+      "pattern": [
+        "E21",
+        "E3",
+        "E4",
+        "E3"
+      ],
+      "count": 196
+    },
+    {
+      "pattern": [
+        "E3",
+        "E25",
+        "E18",
+        "E5"
+      ],
+      "count": 191
+    },
+    {
+      "pattern": [
+        "E3",
+        "E4",
+        "E25",
+        "E18"
+      ],
+      "count": 188
+    },
+    {
+      "pattern": [
+        "E4",
+        "E25",
+        "E18",
+        "E5"
+      ],
+      "count": 187
+    },
+    {
+      "pattern": [
+        "E5",
+        "E13",
+        "E11",
+        "E9"
+      ],
+      "count": 186
+    },
+    {
+      "pattern": [
+        "E6",
+        "E26",
+        "E21",
+        "E23"
+      ],
+      "count": 183
+    },
+    {
+      "pattern": [
+        "E4",
+        "E3",
+        "E25",
+        "E5"
+      ],
+      "count": 174
+    },
+    {
+      "pattern": [
+        "E6",
+        "E26",
+        "E26",
+        "E23"
+      ],
+      "count": 170
+    },
+    {
+      "pattern": [
+        "E5",
+        "E5",
+        "E22",
+        "E13"
+      ],
+      "count": 158
+    }
+  ]
+}

@@ -1,0 +1,386 @@
+/* ==========================================
+   BASE VARIABLES
+   ========================================== */
+:root {
+  --bg-primary: #0a0e17;
+  --bg-secondary: #131b2c;
+  --text-primary: #f0f4f8;
+  --text-secondary: #8b9bb4;
+  --accent-blue: #3b82f6;
+  --accent-cyan: #06b6d4;
+  --accent-green: #10b981;
+  --accent-red: #ef4444;
+  --accent-orange: #f59e0b;
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* ==========================================
+   RESET & GLOBAL
+   ========================================== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4 {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* ==========================================
+   BACKGROUND PARTICLE CANVAS
+   ========================================== */
+#bg-particles {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ==========================================
+   NOC CONTAINER (overlays the particles)
+   ========================================== */
+.noc-container {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 1rem 1.5rem;
+}
+
+/* ==========================================
+   HEADER
+   ========================================== */
+.noc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding-bottom: 0.8rem;
+  margin-bottom: 1rem;
+  flex-shrink: 0;
+}
+
+.noc-header h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  color: #38bdf8;
+  text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+/* ==========================================
+   2x2 GRID LAYOUT
+   ========================================== */
+.noc-grid {
+  display: grid;
+  grid-template-columns: 60% 40%;
+  grid-template-rows: 1.4fr 1fr;
+  gap: 1rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.noc-cell {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(100, 160, 220, 0.15);
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  backdrop-filter: blur(4px);
+  min-height: 0;
+}
+
+.noc-cell h2 {
+  font-size: 0.9rem;
+  margin-top: 0;
+  margin-bottom: 0.8rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  flex-shrink: 0;
+}
+
+/* ==========================================
+   TOP-LEFT: LIVE CLUSTER TOPOLOGY
+   ========================================== */
+.topology-cell {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
+  border: none;
+  backdrop-filter: none;
+}
+
+.topology-cell h2 {
+  display: none;
+}
+
+#hero-canvas-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* Floating Alert Popup */
+.node-popup {
+  position: absolute;
+  z-index: 10;
+  background: rgba(10, 14, 23, 0.85);
+  border: 1px solid var(--accent-red);
+  border-radius: 8px;
+  padding: 0.6rem 1.2rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--accent-red);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  white-space: nowrap;
+  transition: opacity 0.3s, border-color 0.3s, color 0.3s;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+  /* Arrow at bottom */
+}
+
+.node-popup::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid var(--accent-red);
+  transition: border-top-color 0.3s;
+}
+
+.node-popup.diagnosing {
+  border-color: var(--accent-orange);
+  color: var(--accent-orange);
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+}
+.node-popup.diagnosing::after {
+  border-top-color: var(--accent-orange);
+}
+
+.node-popup.healed {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+}
+.node-popup.healed::after {
+  border-top-color: var(--accent-green);
+}
+
+.node-popup.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ==========================================
+   TOP-RIGHT: TERMINAL
+   ========================================== */
+.terminal-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.terminal-window {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.1);
+  min-height: 0;
+}
+
+.terminal-header {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: #1a1a1a;
+  flex-shrink: 0;
+}
+
+.dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+.dot.red { background: #ff5f56; }
+.dot.yellow { background: #ffbd2e; }
+.dot.green { background: #27c93f; }
+
+.terminal-title {
+  margin-left: auto;
+  margin-right: auto;
+  color: #888;
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+}
+
+.terminal-body {
+  padding: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: #a9b7c6;
+  overflow-y: auto;
+  flex: 1;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  min-height: 0;
+}
+
+/* ==========================================
+   BOTTOM-LEFT: INGESTION FEED
+   ========================================== */
+.feed-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.ticker-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #10b981;
+  margin-bottom: 0.8rem;
+  flex-shrink: 0;
+}
+
+.ticker-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow-y: hidden;
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: #64748b;
+  min-height: 0;
+}
+
+.ticker-list li {
+  margin-bottom: 0.4rem;
+  animation: slideDown 0.2s ease-out;
+}
+
+/* ==========================================
+   BOTTOM-RIGHT: INCIDENT LEDGER
+   ========================================== */
+.ledger-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.ledger-scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.ledger-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.ledger-table th {
+  color: #cbd5e1;
+  border-bottom: 1px solid #334155;
+  padding: 0.5rem 0.4rem;
+  position: sticky;
+  top: 0;
+  background: rgba(15, 23, 42, 0.95);
+}
+
+.ledger-table td {
+  padding: 0.4rem;
+  border-bottom: 1px solid #1e293b;
+  color: #a9b7c6;
+}
+
+/* ==========================================
+   PULSE DOT ANIMATIONS
+   ========================================== */
+.pulse-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.pulse-dot.green {
+  background-color: #10b981;
+  box-shadow: 0 0 10px #10b981;
+  animation: pulse 2s infinite;
+}
+
+.pulse-dot.red {
+  background-color: #ef4444;
+  box-shadow: 0 0 15px #ef4444;
+  animation: pulse-fast 0.5s infinite;
+}
+
+.pulse-dot.cyan {
+  background-color: #06b6d4;
+  box-shadow: 0 0 15px #06b6d4;
+  animation: pulse-fast 1s infinite;
+}
+
+.pulse-dot.yellow {
+  background-color: #f59e0b;
+  box-shadow: 0 0 10px #f59e0b;
+  animation: pulse 1.5s infinite;
+}
+
+/* ==========================================
+   KEYFRAMES
+   ========================================== */
+@keyframes pulse {
+  0% { transform: scale(0.95); opacity: 0.7; }
+  50% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.7; }
+}
+
+@keyframes pulse-fast {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.5; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
