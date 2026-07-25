@@ -1,6 +1,10 @@
 # VerdiX
 
-https://github.com/user-attachments/assets/e8f3ec78-f212-4116-95e2-0d494988f29c
+
+
+https://github.com/user-attachments/assets/cbbea7f6-13a8-4db3-bd98-d86ca1cb24b2
+
+
 
 
 
