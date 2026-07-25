@@ -10,6 +10,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
@@ -61,9 +62,13 @@ func main() {
 			taxonomyString = string(taxonomyBytes)
 		}
 	}
+	kafkaBroker := os.Getenv("KAFKA_BROKER")
+	if kafkaBroker == "" {
+		kafkaBroker = "localhost:9092"
+	}
 
 	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:   []string{"localhost:9092"},
+		Brokers:   []string{kafkaBroker},
 		Topic:     "hdfs_raw_logs",
 		Partition: 0,
 		MinBytes:  10e3,
@@ -79,9 +84,23 @@ func main() {
 
 	fmt.Println("Listening for logs on Kafka...")
 
+		idleTimeout := 10 * time.Second
+
 	for {
-		msg, err := reader.ReadMessage(context.Background())
+		ctx, cancel := context.WithTimeout(context.Background(), idleTimeout)
+		msg, err := reader.ReadMessage(ctx)
+		cancel()
+
 		if err != nil {
+			// If it's a timeout (no messages for 10s), reset state for next run
+			if ctx.Err() == context.DeadlineExceeded {
+				if len(blockState) > 0 {
+					fmt.Printf("\n No messages for %v. Resetting state for next run (%d blocks cleared).\n", idleTimeout, len(blockState))
+					blockState = make(map[string][]string)
+					alertedBlocks = make(map[string]bool)
+				}
+				continue
+			}
 			fmt.Printf("Error reading message: %v\n", err)
 			continue
 		}
@@ -95,18 +114,18 @@ func main() {
 		blockID := match
 
 		broadcast <- []byte("LOG:" + logLine)
-		fmt.Print(".")
-
+		
 		blockState[blockID] = append(blockState[blockID], logLine)
 
 		if strings.Contains(logLine, "Exception") || strings.Contains(logLine, "Failed") {
 			if !alertedBlocks[blockID] {
-				fmt.Printf("\n🚨 ANOMALY DETECTED on %s!\n", blockID)
+				fmt.Printf("\n ANOMALY DETECTED on %s!\n", blockID)
 				diagnoseWithLLM(blockID, blockState[blockID], taxonomyString)
 				alertedBlocks[blockID] = true
 			}
 		}
 	}
+
 }
 
 func diagnoseWithLLM(blockID string, history []string, taxonomy string) {

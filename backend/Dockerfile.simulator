@@ -1,0 +1,10 @@
+FROM python:3.11-slim
+WORKDIR /app
+RUN pip install confluent-kafka
+COPY log_simulator.py .
+COPY create_demo.py .
+
+
+RUN python create_demo.py
+
+CMD ["python", "-u", "log_simulator.py"]

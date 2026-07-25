@@ -1,10 +1,11 @@
+import os
 import time
 import random
 import sys
 from confluent_kafka import Producer
 
 LOG_FILE_PATH = r"HDFS_demo.log"
-KAFKA_BROKER = 'localhost:9092'
+KAFKA_BROKER = os.environ.get('KAFKA_BROKER', 'localhost:9092')
 KAFKA_TOPIC = 'hdfs_raw_logs'
 
 

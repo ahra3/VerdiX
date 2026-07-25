@@ -1,15 +1,18 @@
 # VerdiX
 
+https://github.com/user-attachments/assets/e8f3ec78-f212-4116-95e2-0d494988f29c
+
+
+
 An autonomous AIOps pipeline for real-time root cause analysis (RCA) of distributed system logs. VerdiX ingests raw, interleaved HDFS-style logs, reconstructs per-block chronological event sequences across nodes, and hands the full block history to an LLM running a strict Chain-of-Thought (CoT) protocol to deduce a root cause against a fixed failure taxonomy and emit deterministic, executable remediation commands.
 
 ## Architecture
 
 ![VerdiX System Architecture Flow](./arch.png)
 
-- **Research & EDA (`notebooks/`)** — the experimental foundation of the pipeline. Raw Loghub HDFS datasets were parsed here to derive the block-level chronological grouping rules, regex boundaries, and the initial CoT prompt engineering before being ported into the high-performance Go aggregator.
-- **Log simulation (`log_simulator.py`)** — generates realistic HDFS block lifecycle sequences (writes, replication, node failures) and streams them into a local Kafka topic (`hdfs_raw_logs`) at high throughput, standing in for a live production log source.
+- **Log producer (`log_simulator.py`)** — generates realistic HDFS block lifecycle sequences (writes, replication, node failures) and streams them into a local Kafka topic (`hdfs_raw_logs`) at high throughput, standing in for a live production log source.
 - **Aggregator (`backend/aggregator/main.go`)** — a Golang consumer that maintains real-time per-`block_id` state across all reporting nodes. Applies lightweight regex heuristics (`Exception`, `Failed`, etc.) as a fast-pass filter; sending every log line to an LLM is too slow and too expensive to do unconditionally. On a heuristic hit, the aggregator freezes state for that block, compiles its full chronological cross-node history, and dispatches it for diagnosis.
-- **CoT reasoning engine** — the compiled block history is injected into a fixed prompt structure that constrains the LLM (`gpt-4o-mini`, `DeepSeek-R1`, via GitHub Models) to a four-stage protocol designed to prevent hallucinated diagnoses:
+- **CoT reasoning engine** — the compiled block history is injected into a fixed prompt structure that constrains the LLM to a four-stage protocol designed to prevent hallucinated diagnoses:
   - `PREMISE` — factual, chronological summary of the distributed event sequence
   - `OBSERVATION` — explicit identification of the failure point
   - `DEDUCTION` — classification against a predefined HDFS Failure Taxonomy (`WRITE_PATH_FAILURE`, `REPLICATION_FAILURE`, `METADATA_INCONSISTENCY`, ...)
@@ -17,9 +20,9 @@ An autonomous AIOps pipeline for real-time root cause analysis (RCA) of distribu
 - **Real-time telemetry (WebSocket)** — the Go backend streams two channels to the frontend: raw ingestion rate (system health) and finalized CoT diagnostic reports.
 - **Dashboard (`frontend/`, Vite)** — visualizes the live ingestion feed, per-node/block status, and the LLM's step-by-step reasoning trace and remediation actions as they're generated.
 
-## The Ground Truth Knowledge Base (`root_cause_taxonomy.json`)
+## Failure Taxonomy 
 
-The fundamental breakthrough of VerdiX is moving away from unbounded LLM queries and anchoring the AI to a deterministic knowledge base. The Failure Taxonomy is the direct culmination of our extensive Exploratory Data Analysis (EDA) pipeline. By mathematically mining the HDFS dataset in our Jupyter notebooks, we extracted recurring failure signatures and codified them into a strict JSON registry.
+VerdiX moves  away from unbounded LLM queries and anchorsthe AI to a deterministic knowledge base. The Failure Taxonomy is the direct culmination of an extensive Exploratory Data Analysis (EDA) pipeline. By mathematically mining the HDFS dataset in our Jupyter notebooks, a recurring failure signatures and codified them into a strict JSON registry, has been extracted .
 
 During the Chain-of-Thought (CoT) reasoning phase, this taxonomy is dynamically injected into the LLM's system prompt, acting as the absolute ground truth. The LLM is forced to map every observed anomaly strictly to one of the following mathematically derived failure modes, completely eliminating hallucination:
 
@@ -50,66 +53,84 @@ The taxonomy file also stores the complete statistical foundation used by the pi
 ```text
 VerdiX/
 ├── backend/
-│   ├── aggregator/          # Go stateful consumer, WebSocket server, and taxonomy JSON
-│   ├── create_demo.py       # Procedural generator injecting deterministic HDFS anomalies
-│   ├── log_simulator.py     # High-throughput Kafka stream producer
-│   └── docker-compose.yml   # Kafka & Zookeeper orchestration
-├── frontend/                # Vite + React/Three.js 3D NOC Dashboard & WebSocket client
-└── notebooks/               # Jupyter notebooks for EDA, log parsing algorithms, and CoT research
+│   ├── aggregator/
+│   ├── create_demo.py
+│   ├── log_simulator.py
+│   ├── docker-compose.yml       # Kafka & Zookeeper orchestration
+│   └── Dockerfile.simulator     # Python log streamer container
+├── frontend/
+│   └── dashboard/
+│       └── Dockerfile           # Multi-stage Vite build → nginx
+├── notebooks/                   # Jupyter notebooks for EDA, log parsing, and CoT research
+└── docker-compose.full.yml      # Full-stack single-command orchestration
+
 ```
 
 ## Getting started
 
-### Prerequisites
+### Option 1: Docker (Recommended):
+
+Requires only Docker. No Go, Node, or Python installation needed.
+
+
+```sh
+docker-compose -f docker-compose.full.yml up
+```
+
+Serves on `http://localhost:5173`.
+
+> The aggregator resets its block state after 10 seconds of idle, so the simulator can be re-triggered
+
+### Option 2: Manual:
+
+#### Prerequisites
 
 - Docker (Kafka / Zookeeper)
 - Go
 - Node.js & npm
 - Python 3.x
-- A GitHub Personal Access Token with Models access
+- An API Key for any OpenAI-compatible LLM provider 
 
-### 1. Configure credentials
+#### 1. Configure credentials
 
 Create `backend/aggregator/.env`:
 
 ```env
-GITHUB_TOKEN=your_token_here
+LLM_TOKEN=your_token_here
 ```
 
-### 2. Start Kafka
+#### 2. Start Kafka
 
 ```sh
 cd backend
 docker-compose up -d
 ```
 
-### 3. Start the aggregator
+#### 3. Start the aggregator
 
 ```sh
 cd backend/aggregator
 go run main.go
 ```
 
-### 4. Start the dashboard
+#### 4. Start the dashboard
 
 ```sh
-cd frontend
+cd frontend/dashboard
 npm install
 npm run dev
 ```
 
 Serves on `http://localhost:5173`.
 
-### 5. Stream logs
+#### 5. Stream logs
 
 ```sh
 cd backend
 python log_simulator.py
 ```
 
-## Status
 
-Implemented: Kafka log streaming, stateful Go aggregator, regex fast-pass heuristics, CoT RCA pipeline against GitHub Models, HDFS Failure Taxonomy classification, JSON remediation action output, WebSocket telemetry, dashboard visualization of ingestion and diagnostic reports.
 
 ## Citation
 
